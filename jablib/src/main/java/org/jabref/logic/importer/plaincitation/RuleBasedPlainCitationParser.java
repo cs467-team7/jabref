@@ -14,6 +14,7 @@ import org.jabref.model.entry.identifier.DOI;
 import org.jabref.model.entry.types.EntryType;
 import org.jabref.model.entry.types.StandardEntryType;
 
+
 /// Parse a plain citation using regex rules.
 ///
 /// The citation is processed by a pipeline of extractors. Each extractor stores what it found in a field of this
