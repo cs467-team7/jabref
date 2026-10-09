@@ -37,12 +37,12 @@ public class RuleBasedPlainCitationParser implements PlainCitationParser {
 
     private static final Pattern AUTHOR_PATTERN = Pattern.compile(
             "(?<" + LASTNAME_GROUP + ">\\p{Lu}\\w+),?\\s(?<" + INITIALS_GROUP + ">(\\p{Lu}\\.\\s){1,2})" +
-                    "\\s*(and|,|\\.)*",
+                    "(?:\\s|\\band\\b|,|\\.)*",
             Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL);
 
     private static final Pattern AUTHOR_PATTERN_2 = Pattern.compile(
             "(?<" + INITIALS_GROUP + ">(\\p{Lu}\\.\\s){1,2})(?<" + LASTNAME_GROUP + ">\\p{Lu}\\w+)" +
-                    "\\s*(and|,|\\.)*",
+                    "(?:\\s|\\band\\b|,|\\.)*",
             Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL);
 
     private static final Pattern PAGES_PATTERN = Pattern.compile(
@@ -146,28 +146,42 @@ public class RuleBasedPlainCitationParser implements PlainCitationParser {
     }
 
     private String findAuthors(String input) {
-        String currentInput = findAuthorsByPattern(input, AUTHOR_PATTERN);
-        return findAuthorsByPattern(currentInput, AUTHOR_PATTERN_2);
-    }
-
-    private String findAuthorsByPattern(String input, Pattern pattern) {
-        Matcher matcher = pattern.matcher(input);
-        while (matcher.find()) {
-            authors.add(GenerateAuthor(matcher.group(LASTNAME_GROUP), matcher.group(INITIALS_GROUP)));
+        int start = 0;
+        while (start < input.length() && !Character.isLetter(input.charAt(start))) {
+            start++; // skip things like "[1] " or "1. "
         }
-        return fixSpaces(matcher.replaceAll(AUTHOR_TAG));
+        int pos = start;
+        Matcher surnameFirst = AUTHOR_PATTERN.matcher(input);
+        Matcher initialsFirst = AUTHOR_PATTERN_2.matcher(input);
+        while (pos < input.length()) {
+            surnameFirst.region(pos, input.length());
+            initialsFirst.region(pos, input.length());
+            if (surnameFirst.lookingAt()) {
+                authors.add(generateAuthor(surnameFirst.group(LASTNAME_GROUP), surnameFirst.group(INITIALS_GROUP)));
+                pos = surnameFirst.end();
+            } else if (initialsFirst.lookingAt()) {
+                authors.add(generateAuthor(initialsFirst.group(LASTNAME_GROUP), initialsFirst.group(INITIALS_GROUP)));
+                pos = initialsFirst.end();
+            } else {
+                break;
+            }
+        }
+        if (pos == start) {
+            return input;
+        }
+        return fixSpaces(input.substring(0, start) + AUTHOR_TAG + " " + input.substring(pos));
     }
 
-    private String GenerateAuthor(String lastName, String initials) {
-        return lastName + ", " + initials;
+    private String generateAuthor(String lastName, String initials) {
+        return lastName + ", " + initials.trim();
     }
 
     private String findPages(String input) {
         Matcher matcher = PAGES_PATTERN.matcher(input);
         if (matcher.find()) {
-            pages = input.substring(matcher.start(), matcher.end());
+            pages = matcher.group().trim();
         }
-        return fixSpaces(matcher.replaceFirst(PAGES_TAG));
+        return fixSpaces(matcher.replaceFirst(" " + PAGES_TAG));
     }
 
     private String fixSpaces(String input) {
@@ -176,37 +190,58 @@ public class RuleBasedPlainCitationParser implements PlainCitationParser {
                     .replaceAll("\\s+", " ").trim();
     }
 
+    private boolean containsTag(String s) {
+        return s.contains(YEAR_TAG) || s.contains(PAGES_TAG) || s.contains(URL_TAG);
+    }
+
+    private String stripTags(String s) {
+        return s.replace(YEAR_TAG, "").replace(PAGES_TAG, "").replace(URL_TAG, "");
+    }
+
     private String findParts(String input) {
-        ArrayList<String> lastParts = new ArrayList<>();
         int afterAuthorsIndex = input.lastIndexOf(AUTHOR_TAG);
         if (afterAuthorsIndex == -1) {
             return input;
-        } else {
-            afterAuthorsIndex += AUTHOR_TAG.length();
         }
+        afterAuthorsIndex += AUTHOR_TAG.length();
+
+        List<String> rawParts = new ArrayList<>();
         int delimiterIndex = input.lastIndexOf("//");
         if (delimiterIndex != -1) {
-            lastParts.add(input.substring(afterAuthorsIndex, delimiterIndex)
-                               .replace(YEAR_TAG, "")
-                               .replace(PAGES_TAG, ""));
-            lastParts.addAll(Arrays.asList(input.substring(delimiterIndex + 2).split(",|\\.")));
+            rawParts.add(input.substring(afterAuthorsIndex, delimiterIndex));
+            rawParts.addAll(Arrays.asList(input.substring(delimiterIndex + 2).split(",|\\.")));
         } else {
-            lastParts.addAll(Arrays.asList(input.substring(afterAuthorsIndex).split(",|\\.")));
+            rawParts.addAll(Arrays.asList(input.substring(afterAuthorsIndex).split(",|\\.")));
         }
-        int nonDigitParts = 0;
-        for (String part : lastParts) {
-            if (containsDigit(part)) {
+        boolean hasDelimiter = delimiterIndex != -1;
+        List<String> textParts = new ArrayList<>();
+        for (int i = 0; i < rawParts.size(); i++) {
+            String part = rawParts.get(i);
+            boolean beforeDelimiter = hasDelimiter && i == 0;
+            boolean hasTag = containsTag(part) && !beforeDelimiter;
+            String cleaned = stripTags(part).trim();
+            if (cleaned.isEmpty()) {
+                if (hasTag) {
+                    break;      // pure metadata segment like "[year_tag]"
+                }
+                continue;       // blank segment
+            }
+            if (containsDigit(cleaned)) {
                 break;
             }
-            nonDigitParts++;
+            textParts.add(cleaned);
+            if (hasTag) {
+                break;          // "Journal Name [pages_tag]" -> text, then metadata starts
+            }
         }
-        if (nonDigitParts > 0) {
-            title = lastParts.getFirst();
+
+        if (!textParts.isEmpty()) {
+            title = textParts.get(0);
         }
-        if (nonDigitParts > 1) {
-            journalOrPublisher = lastParts.get(1);
+        if (textParts.size() > 1) {
+            journalOrPublisher = textParts.get(1);
         }
-        if (nonDigitParts > 2) {
+        if (textParts.size() > 2) {
             isArticle = false;
         }
         return fixSpaces(input);
