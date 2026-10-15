@@ -12,7 +12,6 @@ import org.jabref.model.entry.field.StandardField;
 import org.jabref.model.entry.types.StandardEntryType;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -327,13 +326,6 @@ class RuleBasedPlainCitationParserTest {
     @MethodSource
     void findsPages(String expectedPages, String writtenPages) throws FetcherException {
         assertEquals(Optional.of(expectedPages), parseField("Smith, J. A title. Journal, 2020, " + writtenPages + ".", StandardField.PAGES));
-    }
-
-    /// Not supported yet: several page ranges and article numbers.
-    static Stream<Arguments> findsSeveralPageRangesAndArticleNumbers() {
-        return Stream.of(
-                Arguments.of("145--152, 160", "145-152, 160"),
-                Arguments.of("102016", "Art. no. 102016"));
     }
 
     /// Year extraction runs before page extraction, so the year does not end up in pages.
