@@ -25,8 +25,12 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-/// Measures the accuracy of [RuleBasedPlainCitationParser] on a 300-citation sample of
-/// [RenoBench](https://huggingface.co/datasets/sciencesearch/renobench) (CDLA-Permissive-1.0).
+/// Measures the accuracy of [RuleBasedPlainCitationParser] on a 300-citation sample of the `ref_benchmark_clean`
+/// config of [RenoBench Clean](https://huggingface.co/datasets/cometadata/renobench-clean) (Apache-2.0),
+/// the quality-checked subset of RenoBench.
+///
+/// The sample holds journal articles and whole books only, the two entry types the parser produces, stratified
+/// by language (en, pt, es, fr, de, it). A citation was kept only if its JATS fields also appear in its plain text.
 ///
 /// Each line of `answer-key.jsonl` holds one raw citation (`plaintext`) and the BibTeX fields it should
 /// give (`fields`), already cleaned into the form JabRef stores them in. The test only compares: every

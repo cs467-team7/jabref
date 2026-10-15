@@ -66,9 +66,13 @@ class RuleBasedPlainCitationParserTest {
     }
 
     /// DOI extraction runs before URL extraction, so a `doi.org` link ends up only in the doi field.
+    /// Both fields are checked, so the link must not get lost either.
     @Test
-    void doiLinkIsNotStoredAsUrl() throws FetcherException {
-        assertEquals(Optional.empty(), parseField("Smith, J. A title. Journal, 2020. https://doi.org/10.1000/xyz123", StandardField.URL));
+    void doiLinkIsStoredAsDoiNotUrl() throws FetcherException {
+        Optional<BibEntry> entry = parser.parsePlainCitation("Smith, J. A title. Journal, 2020. https://doi.org/10.1000/xyz123");
+        assertEquals(List.of(Optional.of("10.1000/xyz123"), Optional.empty()),
+                List.of(entry.flatMap(e -> e.getField(StandardField.DOI)),
+                        entry.flatMap(e -> e.getField(StandardField.URL))));
     }
 
     /// The DOI is removed before year and pages extraction, so its digits must not become the year or pages.
@@ -80,8 +84,7 @@ class RuleBasedPlainCitationParserTest {
                         entry.flatMap(e -> e.getField(StandardField.PAGES))));
     }
 
-    /// Regression: since the DOI step was added, a citation with both a DOI and a URL threw
-    /// `StringIndexOutOfBoundsException`. Both orders are tested: DOI before URL, and URL before DOI.
+    /// A citation with both a DOI and a URL throws `StringIndexOutOfBoundsException`. Both orders are tested: DOI before URL, and URL before DOI.
     @ParameterizedTest
     @ValueSource(strings = {"Smith, J. A title. Journal, 2020. doi:10.1000/xyz123 https://example.com/page",
                             "Smith, J. A title. Journal, 2020. https://example.com/page doi:10.1000/xyz123"})
