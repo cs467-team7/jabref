@@ -17,11 +17,6 @@ import org.jabref.model.entry.types.StandardEntryType;
 
 /// Parse a plain citation using regex rules.
 ///
-/// The citation is processed by a pipeline of extractors. Each extractor stores what it found in a field of this
-/// class and replaces it with a placeholder token (such as `[year_tag]`) in the text handed to the next extractor.
-/// The placeholder tokens are internal only: [#findParts] removes them before it infers title and journal/publisher,
-/// and the original citation text (not the tokenized text) is stored in the `comment` field.
-///
 /// TODO: This class is similar to [org.jabref.logic.importer.fileformat.pdf.RuleBasedBibliographyPdfImporter], we need to unify them.
 public class RuleBasedPlainCitationParser implements PlainCitationParser {
 
