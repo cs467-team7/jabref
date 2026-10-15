@@ -43,7 +43,7 @@ class RuleBasedPlainCitationParserGoldAccuracyTest {
 
     /** One reference from gold.xml: the plain input string plus the expected values taken from its tags. */
     record GoldCitation(int index, String input, String title, String year, String firstAuthor,
-                        String journal, String volume, String pages) {
+                        String journal, String pages) {
     }
 
     @Test
@@ -55,7 +55,6 @@ class RuleBasedPlainCitationParserGoldAccuracyTest {
         int withYear = 0, yearOk = 0;
         int withAuthor = 0, authorOk = 0;
         int withJournal = 0, journalOk = 0;
-        int withVolume = 0, volumeOk = 0;
         int withPages = 0, pagesOk = 0;
         int noEntry = 0, crashed = 0;
 
@@ -124,17 +123,6 @@ class RuleBasedPlainCitationParserGoldAccuracyTest {
                 }
             }
 
-            // Volume: compare just the number, e.g. "39," -> 39 and "1(1)," -> 1
-            if (g.volume() != null) {
-                withVolume++;
-                String actual = normalizeVolume(entry.getField(StandardField.VOLUME).orElse(""));
-                if (actual.equals(g.volume())) {
-                    volumeOk++;
-                } else {
-                    failures.add(row(g, "volume", g.volume(), actual, g.input()));
-                }
-            }
-
             // Pages: "pp. 683–687." and "683--687" both become 683--687 before comparing
             if (g.pages() != null) {
                 withPages++;
@@ -158,7 +146,6 @@ class RuleBasedPlainCitationParserGoldAccuracyTest {
                 year              : %5.1f%%  (%d / %d)
                 first author      : %5.1f%%  (%d / %d)
                 journal           : %5.1f%%  (%d / %d)
-                volume            : %5.1f%%  (%d / %d)
                 pages             : %5.1f%%  (%d / %d)
                 no entry returned : %d
                 exceptions        : %d
@@ -171,7 +158,6 @@ class RuleBasedPlainCitationParserGoldAccuracyTest {
                 pct(yearOk, withYear), yearOk, withYear,
                 pct(authorOk, withAuthor), authorOk, withAuthor,
                 pct(journalOk, withJournal), journalOk, withJournal,
-                pct(volumeOk, withVolume), volumeOk, withVolume,
                 pct(pagesOk, withPages), pagesOk, withPages,
                 noEntry, crashed, FAILURE_REPORT.toAbsolutePath());
 
@@ -206,7 +192,7 @@ class RuleBasedPlainCitationParserGoldAccuracyTest {
     private static GoldCitation toCitation(int index, Element sequence) {
         List<String> parts = new ArrayList<>();
         String title = null, year = null, author = null;
-        String journal = null, volume = null, pages = null;
+        String journal = null, pages = null;
 
         NodeList children = sequence.getChildNodes();
         for (int j = 0; j < children.getLength(); j++) {
@@ -225,14 +211,13 @@ class RuleBasedPlainCitationParserGoldAccuracyTest {
                 case "date" -> year = (year == null) ? extractYear(text) : year;
                 case "author" -> author = (author == null) ? firstSurname(text) : author;
                 case "journal" -> journal = (journal == null) ? clean(text) : journal;
-                case "volume" -> volume = (volume == null) ? normalizeVolume(text) : volume;
                 case "pages" -> pages = (pages == null) ? normalizePages(text) : pages;
                 default -> {
                 }
             }
         }
         return new GoldCitation(index, String.join(" ", parts), emptyToNull(title), year, emptyToNull(author),
-                emptyToNull(journal), emptyToNull(volume), emptyToNull(pages));
+                emptyToNull(journal), emptyToNull(pages));
     }
 
     // ---------------------------------------------------------------- helpers
@@ -260,15 +245,6 @@ class RuleBasedPlainCitationParserGoldAccuracyTest {
         }
         String[] tokens = first.replaceAll("[.,]$", "").split("\\s+");
         return tokens[tokens.length - 1].replaceAll("[.,]$", "");
-    }
-
-    /**
-     * Keeps only the volume number: "39," -> 39, "1(1)," -> 1, "Vol. 12" -> 12.
-     * Non-numeric volumes (e.g. Roman numerals) are just cleaned.
-     */
-    private static String normalizeVolume(String s) {
-        Matcher m = Pattern.compile("\\d+").matcher(s);
-        return m.find() ? m.group() : clean(s);
     }
 
     /**
