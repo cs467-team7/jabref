@@ -4,6 +4,7 @@ import java.time.Year;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -13,8 +14,6 @@ import org.jabref.model.entry.field.StandardField;
 import org.jabref.model.entry.identifier.DOI;
 import org.jabref.model.entry.types.EntryType;
 import org.jabref.model.entry.types.StandardEntryType;
-
-import org.apache.commons.lang3.Strings;
 
 /// Parse a plain citation using regex rules.
 ///
@@ -262,7 +261,7 @@ public class RuleBasedPlainCitationParser implements PlainCitationParser {
     /// Only whitespace is collapsed here. [#fixSpaces] would insert spaces into a URL that is still in the text
     /// (`https://x.org` -> `https: //x. org`), so no URL could be found afterwards.
     private String removeDoi(String input) {
-        int doiStart = Strings.CI.indexOf(input, doi);
+         int doiStart = input.toLowerCase(Locale.ROOT).indexOf(doi.toLowerCase(Locale.ROOT));
         if (doiStart == -1) {
             // The DOI is written differently than its canonical form (for example percent-encoded)
             return collapseWhitespace(DOI.replaceInText(input, ""));
